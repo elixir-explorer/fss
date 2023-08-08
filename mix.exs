@@ -1,0 +1,39 @@
+defmodule Fss.MixProject do
+  use Mix.Project
+
+  @version "0.1.0"
+  @github_url "https://github.com/elixir-explorer/fss"
+
+  def project do
+    [
+      app: :fss,
+      version: @version,
+      elixir: "~> 1.14",
+      start_permanent: Mix.env() == :prod,
+      package: package(),
+      deps: deps()
+    ]
+  end
+
+  def application do
+    [
+      extra_applications: [:logger]
+    ]
+  end
+
+  defp deps do
+    [
+      # docs
+      {:ex_doc, "~> 0.30", only: :docs, runtime: false}
+    ]
+  end
+
+  defp package do
+    [
+      name: "fss",
+      files: ~w(README* LICENSE* mix.exs lib),
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => @github_url}
+    ]
+  end
+end
