@@ -11,6 +11,7 @@ defmodule Fss.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       package: package(),
+      docs: docs(),
       deps: deps()
     ]
   end
@@ -26,6 +27,10 @@ defmodule Fss.MixProject do
       # docs
       {:ex_doc, "~> 0.30", only: :docs, runtime: false}
     ]
+  end
+
+  defp docs do
+    [main: "FSS", source_ref: "v#{@version}", source_url: @github_url]
   end
 
   defp package do
