@@ -1,5 +1,13 @@
 defmodule FSS.S3 do
+  @moduledoc """
+  Specification for accessing AWS S3 resources.
+  """
+
   defmodule Config do
+    @moduledoc """
+    Represents the configuration needed for accessing an S3 resource.
+    """
+
     defstruct [
       :access_key_id,
       :region,
@@ -8,6 +16,19 @@ defmodule FSS.S3 do
       :token
     ]
 
+    @typedoc """
+    The configuration struct for S3.
+
+    The attributes are:
+
+    * `:access_key_id` - This attribute is required.
+    * `:region` - This attribute is required.
+    * `:secret_access_key` - This attribute is required.
+    * `:endpoint` - This attribute is optional. If specified, then `:region` is ignored.
+      This attribute is useful for when you are using a service that is compatible with
+      the AWS S3 API.
+    * `:token` - This attribute is optional.
+    """
     @type t :: %__MODULE__{
             access_key_id: String.t(),
             region: String.t(),
@@ -18,8 +39,21 @@ defmodule FSS.S3 do
   end
 
   defmodule Entry do
+    @moduledoc """
+    Represents the S3 resource itself.
+    """
+
     defstruct [:bucket, :key, :config]
 
+    @typedoc """
+    The entry struct for S3.
+
+    The attributes are:
+
+    * `:bucket` - A valid bucket name. This attribute is required.
+    * `:key` - A valid key for the resource. This attribute is required.
+    * `:config` - A valid S3 config from the type `Config.t()`. This attribute is required.
+    """
     @type t :: %__MODULE__{
             bucket: String.t(),
             key: String.t(),
@@ -27,6 +61,24 @@ defmodule FSS.S3 do
           }
   end
 
+  @doc """
+  Parses a URL in the format `s3://bucket/resource-key`.
+
+  ## Options
+
+    * `:config` - It expects a `Config.t()` or a `Keyword.t()` with the keys
+      representing the attributes of the `Config.t()`. By default it is `nil`,
+      which means that we are going to try to fetch the credentials and configuration
+      from the system's environment variables.
+
+      The following env vars are read:
+
+      - `AWS_ACCESS_KEY_ID`
+      - `AWS_SECRET_ACCESS_KEY`
+      - `AWS_REGION` or `AWS_DEFAULT_REGION`
+      - `AWS_SESSION_TOKEN`
+  """
+  @spec parse(String.t(), Keyword.t()) :: {:ok, Entry.t()} | {:error, Exception.t()}
   def parse(url, opts \\ []) do
     opts = Keyword.validate!(opts, config: nil)
 
@@ -79,6 +131,10 @@ defmodule FSS.S3 do
     end
   end
 
+  @doc """
+  Builds a `Config.t()` reading from the system env.
+  """
+  @spec config_from_system_env :: Config.t()
   def config_from_system_env() do
     %Config{
       access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
