@@ -1,7 +1,6 @@
 defmodule FSS.HTTP do
   @moduledoc """
-  The modules for accessing HTTP(s) resources.
-
+  Specification for accessing HTTP(s) resources.
   """
 
   defmodule Config do

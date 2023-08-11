@@ -1,6 +1,6 @@
 defmodule FSS.S3 do
   @moduledoc """
-  The modules for accessing AWS S3 resources.
+  Specification for accessing AWS S3 resources.
   """
 
   defmodule Config do

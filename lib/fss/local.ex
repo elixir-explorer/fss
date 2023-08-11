@@ -1,6 +1,6 @@
 defmodule FSS.Local do
   @moduledoc """
-  A module for representing local files.
+  Specification for local files.
 
   The `FSS.Local.Entry` represents a local file with its path.
   """
