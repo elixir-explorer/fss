@@ -10,6 +10,10 @@ defmodule FSS do
   It's a library to parse and validate URIs, with the necessary
   attributes.
 
-  See `FSS.S3` for more details.
+  See the supported specifications for more details:
+
+  * `FSS.Local`
+  * `FSS.HTTP`
+  * `FSS.S3`
   """
 end
