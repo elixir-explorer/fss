@@ -20,8 +20,19 @@ defmodule FSS.S3Test do
       assert {:ok, %Entry{key: "my-file.png", config: %Config{} = config}} =
                S3.parse("s3://my-bucket/my-file.png", config: config)
 
-      assert is_nil(config.endpoint)
+      assert config.endpoint == "https://my-bucket.s3.us-west-2.amazonaws.com"
       assert config.bucket == "my-bucket"
+      assert config.secret_access_key == "my-secret"
+      assert config.access_key_id == "my-access"
+      assert config.region == "us-west-2"
+    end
+
+    test "parses a s3:// style uri with bucket name containing dots", %{config: config} do
+      assert {:ok, %Entry{key: "my-file.png", config: %Config{} = config}} =
+               S3.parse("s3://my.bucket.with.dots/my-file.png", config: config)
+
+      assert config.endpoint == "https://s3.us-west-2.amazonaws.com/my.bucket.with.dots"
+      assert config.bucket == "my.bucket.with.dots"
       assert config.secret_access_key == "my-secret"
       assert config.access_key_id == "my-access"
       assert config.region == "us-west-2"

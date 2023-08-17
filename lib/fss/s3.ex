@@ -23,19 +23,25 @@ defmodule FSS.S3 do
     The attributes are:
 
     * `:access_key_id` - This attribute is required.
-    * `:bucket` - A valid bucket name. This attribute is required.
-    * `:region` - This attribute is required.
+
+    * `:bucket` - A valid bucket name. This attribute is optional,
+      but if is not provided, then it's assumed that the bucket is in the `:endpoint`.
+
+    * `:region` - This attribute is optional.
+
     * `:secret_access_key` - This attribute is required.
+
     * `:endpoint` - This attribute is optional. If specified, then `:region` is ignored.
       This attribute is useful for when you are using a service that is compatible with
       the AWS S3 API.
+
     * `:token` - This attribute is optional.
     """
     @type t :: %__MODULE__{
             access_key_id: String.t(),
-            bucket: String.t(),
-            region: String.t(),
             secret_access_key: String.t(),
+            bucket: String.t() | nil,
+            region: String.t() | nil,
             endpoint: String.t() | nil,
             token: String.t() | nil
           }
@@ -79,8 +85,10 @@ defmodule FSS.S3 do
       - `AWS_REGION` or `AWS_DEFAULT_REGION`
       - `AWS_SESSION_TOKEN`
 
-      Although you can pass the `:bucket` as a configuration option, it's not
-      possible to override the bucket name from the URL.
+      In case the `:endpoint` is not configured, then we use the default host-style
+      URL from AWS, that is `https://[bucket-name].s3.[region].amazonaws.com`, unless
+      the bucket name contains dots, meaning that we can't use a virtual host, and
+      instead of use the path-style: `https://s3.[region].amazonaws.com/[bucket-name]`.
   """
   @spec parse(String.t(), Keyword.t()) :: {:ok, Entry.t()} | {:error, Exception.t()}
   def parse(url, opts \\ []) do
@@ -95,8 +103,26 @@ defmodule FSS.S3 do
           |> Keyword.fetch!(:config)
           |> normalize_config!()
           |> validate_config!()
+          |> then(fn %Config{} = config ->
+            config = %Config{config | bucket: bucket}
 
-        {:ok, %Entry{key: key, config: %{config | bucket: bucket}}}
+            if is_nil(config.endpoint) do
+              # We only use the path-style if the bucket name contain dots.
+              # The standard way is to use the virtual-host style.
+              endpoint =
+                if String.contains?(bucket, ".") do
+                  "https://s3." <> config.region <> ".amazonaws.com/" <> bucket
+                else
+                  "https://" <> bucket <> ".s3." <> config.region <> ".amazonaws.com"
+                end
+
+              %Config{config | endpoint: endpoint}
+            else
+              config
+            end
+          end)
+
+        {:ok, %Entry{key: key, config: config}}
 
       _ ->
         {:error,
