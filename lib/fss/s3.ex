@@ -146,4 +146,90 @@ defmodule FSS.S3 do
       token: System.get_env("AWS_SESSION_TOKEN")
     }
   end
+
+  @doc """
+  Parses configuration from a bucket URL.
+
+  It expects an URL in the following formats:
+
+  - `https://s3.[region].amazonaws.com/[bucket]`
+  - `https://[bucket].s3.[region].amazonaws.com`
+  - `https://my-custom-endpoint.com/[bucket]`
+
+  If the URL is not in one of these formats, then an error
+  is returned. For custom endpoints (services that are compatible
+  with AWS S3), it's possible to pass the port and use HTTP.
+
+  All the additional required configuration must be passed as
+  options to the `:config` option.
+
+  ## Options
+
+    * `:config` - It expects a `Config.t()` or a `Keyword.t()` with the keys
+      representing the attributes of the `Config.t()`. By default it is `nil`,
+      which means that we are going to try to fetch the credentials and configuration
+      from the system's environment variables.
+
+      The following env vars are read:
+
+      - `AWS_ACCESS_KEY_ID`
+      - `AWS_SECRET_ACCESS_KEY`
+      - `AWS_REGION` or `AWS_DEFAULT_REGION`
+      - `AWS_SESSION_TOKEN`
+
+      Although you can pass the `:bucket` and `:region` as options,
+      they are always override by the values parsed from the URL.
+  """
+  @spec parse_config_from_bucket_url(String.t()) :: {:ok, Config.t()} | {:error, Exception.t()}
+  def parse_config_from_bucket_url(bucket_url, opts \\ []) do
+    opts = Keyword.validate!(opts, config: nil)
+
+    uri = URI.parse(bucket_url)
+
+    case uri do
+      %{host: host, path: path} when is_binary(host) and (is_nil(path) or path == "/") ->
+        base_config =
+          opts
+          |> Keyword.fetch!(:config)
+          |> normalize_config!()
+
+        case String.split(host, ".") do
+          [bucket, "s3", region, "amazonaws", "com"] ->
+            {:ok, %Config{base_config | bucket: bucket, region: region}}
+
+          _other ->
+            {:error,
+             ArgumentError.exception(
+               "cannot extract bucket name from URL. Expected URL in the format " <>
+                 "https://s3.[region].amazonaws.com/[bucket], got: " <>
+                 URI.to_string(uri)
+             )}
+        end
+
+      %{host: host, path: "/" <> bucket} when is_binary(host) ->
+        base_config =
+          opts
+          |> Keyword.fetch!(:config)
+          |> normalize_config!()
+          |> then(fn config -> %Config{config | bucket: bucket} end)
+
+        case String.split(host, ".") do
+          ["s3", region, "amazonaws", "com"] ->
+            {:ok, %Config{base_config | region: region}}
+
+          _other ->
+            endpoint_uri = %URI{uri | path: nil}
+
+            {:ok, %Config{base_config | endpoint: URI.to_string(endpoint_uri)}}
+        end
+
+      _ ->
+        {:error,
+         ArgumentError.exception(
+           "expected URL in the format " <>
+             "https://s3.[region].amazonaws.com/[bucket], got: " <>
+             URI.to_string(uri)
+         )}
+    end
+  end
 end
