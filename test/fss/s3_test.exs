@@ -17,10 +17,11 @@ defmodule FSS.S3Test do
     end
 
     test "parses a s3:// style uri", %{config: config} do
-      assert {:ok, %Entry{bucket: "my-bucket", key: "my-file.png", config: %Config{} = config}} =
+      assert {:ok, %Entry{key: "my-file.png", config: %Config{} = config}} =
                S3.parse("s3://my-bucket/my-file.png", config: config)
 
       assert is_nil(config.endpoint)
+      assert config.bucket == "my-bucket"
       assert config.secret_access_key == "my-secret"
       assert config.access_key_id == "my-access"
       assert config.region == "us-west-2"
@@ -38,6 +39,7 @@ defmodule FSS.S3Test do
                )
 
       assert config.endpoint == "localhost"
+      assert config.bucket == "my-bucket"
       assert config.secret_access_key == "my-secret-1"
       assert config.access_key_id == "my-access-key-1"
       assert config.region == "eu-east-1"
@@ -50,11 +52,14 @@ defmodule FSS.S3Test do
                    endpoint: "localhost",
                    secret_access_key: "my-secret-1",
                    access_key_id: "my-access-key-1",
+                   # We always ignore bucket from config.
+                   bucket: "random-name",
                    region: "eu-east-1"
                  }
                )
 
       assert config.endpoint == "localhost"
+      assert config.bucket == "my-bucket"
       assert config.secret_access_key == "my-secret-1"
       assert config.access_key_id == "my-access-key-1"
       assert config.region == "eu-east-1"

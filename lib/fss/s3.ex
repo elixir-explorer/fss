@@ -10,6 +10,7 @@ defmodule FSS.S3 do
 
     defstruct [
       :access_key_id,
+      :bucket,
       :region,
       :secret_access_key,
       :endpoint,
@@ -22,6 +23,7 @@ defmodule FSS.S3 do
     The attributes are:
 
     * `:access_key_id` - This attribute is required.
+    * `:bucket` - A valid bucket name. This attribute is required.
     * `:region` - This attribute is required.
     * `:secret_access_key` - This attribute is required.
     * `:endpoint` - This attribute is optional. If specified, then `:region` is ignored.
@@ -31,6 +33,7 @@ defmodule FSS.S3 do
     """
     @type t :: %__MODULE__{
             access_key_id: String.t(),
+            bucket: String.t(),
             region: String.t(),
             secret_access_key: String.t(),
             endpoint: String.t() | nil,
@@ -43,19 +46,17 @@ defmodule FSS.S3 do
     Represents the S3 resource itself.
     """
 
-    defstruct [:bucket, :key, :config]
+    defstruct [:key, :config]
 
     @typedoc """
     The entry struct for S3.
 
     The attributes are:
 
-    * `:bucket` - A valid bucket name. This attribute is required.
     * `:key` - A valid key for the resource. This attribute is required.
     * `:config` - A valid S3 config from the type `Config.t()`. This attribute is required.
     """
     @type t :: %__MODULE__{
-            bucket: String.t(),
             key: String.t(),
             config: Config.t()
           }
@@ -77,6 +78,9 @@ defmodule FSS.S3 do
       - `AWS_SECRET_ACCESS_KEY`
       - `AWS_REGION` or `AWS_DEFAULT_REGION`
       - `AWS_SESSION_TOKEN`
+
+      Although you can pass the `:bucket` as a configuration option, it's not
+      possible to override the bucket name from the URL.
   """
   @spec parse(String.t(), Keyword.t()) :: {:ok, Entry.t()} | {:error, Exception.t()}
   def parse(url, opts \\ []) do
@@ -89,23 +93,10 @@ defmodule FSS.S3 do
         config =
           opts
           |> Keyword.fetch!(:config)
-          |> case do
-            nil ->
-              config_from_system_env()
-
-            %Config{} = config ->
-              config
-
-            config when is_list(config) or is_map(config) ->
-              struct!(config_from_system_env(), config)
-
-            other ->
-              raise ArgumentError,
-                    "expect configuration to be a %FSS.S3.Config{} struct, a keyword list or a map. Instead got #{inspect(other)}"
-          end
+          |> normalize_config!()
           |> validate_config!()
 
-        {:ok, %Entry{bucket: bucket, key: key, config: config}}
+        {:ok, %Entry{key: key, config: %{config | bucket: bucket}}}
 
       _ ->
         {:error,
@@ -122,6 +113,18 @@ defmodule FSS.S3 do
     check!(config, :region, "AWS_REGION")
 
     config
+  end
+
+  defp normalize_config!(nil), do: config_from_system_env()
+  defp normalize_config!(%Config{} = config), do: config
+
+  defp normalize_config!(config) when is_list(config) or is_map(config) do
+    struct!(config_from_system_env(), config)
+  end
+
+  defp normalize_config!(other) do
+    raise ArgumentError,
+          "expect configuration to be a %FSS.S3.Config{} struct, a keyword list or a map. Instead got #{inspect(other)}"
   end
 
   defp check!(config, key, env) do
