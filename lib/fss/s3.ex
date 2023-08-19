@@ -24,25 +24,35 @@ defmodule FSS.S3 do
 
     * `:access_key_id` - This attribute is required.
 
-    * `:bucket` - A valid bucket name. This attribute is optional,
-      but if is not provided, then it's assumed that the bucket is in the `:endpoint`.
-
-    * `:region` - This attribute is optional.
-
     * `:secret_access_key` - This attribute is required.
 
-    * `:endpoint` - This attribute is optional. If specified, then `:region` is ignored.
-      This attribute is useful for when you are using a service that is compatible with
-      the AWS S3 API.
+    * `:bucket` - A valid bucket name. This attribute is optional,
+      but if is not provided, then the `:endpoint` must include the bucket name
+      either in the host, as a virtual host, or in the path.
+
+    * `:region` - This attribute is optional. It's normally required when working
+      with the official AWS S3 API.
+
+    * `:endpoint` - If specified, then `:region` is ignored.
+      This attribute is required to be configured if you are using a service that
+      is compatible with the AWS S3 API.
+
+      In case only a "bucket URL" - without discrimination of the bucket name - is provided
+      then the `:bucket` attribute can be nil just like the `:region`.
+
+      In case the endpoint is not provided, we compute a valid one for the AWS S3 API.
+      This endpoint is going to follow the virtual-host style most of the time, with
+      the only exception being when the bucket name has dots. In that case we build
+      the AWS S3 endpoint with the bucket name as a path in the URL.
 
     * `:token` - This attribute is optional.
     """
     @type t :: %__MODULE__{
             access_key_id: String.t(),
             secret_access_key: String.t(),
+            endpoint: String.t(),
             bucket: String.t() | nil,
             region: String.t() | nil,
-            endpoint: String.t() | nil,
             token: String.t() | nil
           }
   end
@@ -85,10 +95,13 @@ defmodule FSS.S3 do
       - `AWS_REGION` or `AWS_DEFAULT_REGION`
       - `AWS_SESSION_TOKEN`
 
-      In case the `:endpoint` is not configured, then we use the default host-style
-      URL from AWS, that is `https://[bucket-name].s3.[region].amazonaws.com`, unless
-      the bucket name contains dots, meaning that we can't use a virtual host, and
-      instead of use the path-style: `https://s3.[region].amazonaws.com/[bucket-name]`.
+      In case the endpoint is not provided, we compute a valid one for the AWS S3 API.
+      This endpoint is going to follow the virtual-host style most of the time, with
+      the only exception being when the bucket name has dots. In that case we build
+      the AWS S3 endpoint with the bucket name as a path in the URL.
+
+      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+      for more details.
   """
   @spec parse(String.t(), Keyword.t()) :: {:ok, Entry.t()} | {:error, Exception.t()}
   def parse(url, opts \\ []) do
