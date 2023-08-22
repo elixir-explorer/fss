@@ -16,4 +16,9 @@ defmodule FSS do
   * `FSS.HTTP`
   * `FSS.S3`
   """
+
+  @typedoc """
+  Can be used to refer to any entry that FSS supports.
+  """
+  @type entry() :: FSS.Local.Entry.t() | FSS.S3.Entry.t() | FSS.HTTP.Entry.t()
 end

@@ -17,4 +17,21 @@ defmodule FSS.Local do
     """
     @type t :: %__MODULE__{path: String.t()}
   end
+
+  @doc """
+  Builds a `FSS.Local.Entry` struct from a path.
+
+  ## Examples
+
+      iex> FSS.Local.from_path("/home/joe/file.txt")
+      %FSS.Local.Entry{path: "/home/joe/file.txt"}
+
+      iex> FSS.Local.from_path("C:/joe/file.txt")
+      %FSS.Local.Entry{path: "C:/joe/file.txt"}
+
+  """
+  @spec from_path(String.t()) :: Entry.t()
+  def from_path(path) when is_binary(path) do
+    %Entry{path: path}
+  end
 end
