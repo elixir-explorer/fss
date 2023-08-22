@@ -28,7 +28,11 @@ defmodule FSS.S3 do
 
     * `:bucket` - A valid bucket name. This attribute is optional,
       but if is not provided, then the `:endpoint` must include the bucket name
-      either in the host, as a virtual host, or in the path.
+      either in the host, as a virtual host, or in the path. In other words:
+      if the bucket is not given, then `:endpoint` must be configured.
+
+      This attribute is going to be set to `nil` if the endpoint was
+      not provided, unless the bucket name contain dots in it.
 
     * `:region` - This attribute is optional. It's normally required when working
       with the official AWS S3 API.
@@ -43,7 +47,7 @@ defmodule FSS.S3 do
       In case the endpoint is not provided, we compute a valid one for the AWS S3 API.
       This endpoint is going to follow the virtual-host style most of the time, with
       the only exception being when the bucket name has dots. In that case we build
-      the AWS S3 endpoint with the bucket name as a path in the URL.
+      the AWS S3 endpoint without the bucket name in it.
 
     * `:token` - This attribute is optional.
     """
@@ -95,10 +99,9 @@ defmodule FSS.S3 do
       - `AWS_REGION` or `AWS_DEFAULT_REGION`
       - `AWS_SESSION_TOKEN`
 
-      In case the endpoint is not provided, we compute a valid one for the AWS S3 API.
-      This endpoint is going to follow the virtual-host style most of the time, with
-      the only exception being when the bucket name has dots. In that case we build
-      the AWS S3 endpoint with the bucket name as a path in the URL.
+      In case the endpoint is not provided, we compute a valid one for the AWS S3 API,
+      That is going to follow the path style. The endpoint is not going to include the
+      `:bucket` in it, being necessary to do that when using this FSS entry.
 
       See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
       for more details.
@@ -111,6 +114,8 @@ defmodule FSS.S3 do
 
     case uri do
       %{scheme: "s3", host: bucket, path: "/" <> key} when is_binary(bucket) ->
+        bucket = if bucket != "", do: bucket
+
         config =
           opts
           |> Keyword.fetch!(:config)
@@ -119,23 +124,28 @@ defmodule FSS.S3 do
           |> then(fn %Config{} = config ->
             config = %Config{config | bucket: bucket}
 
-            if is_nil(config.endpoint) do
-              # We only use the path-style if the bucket name contain dots.
-              # The standard way is to use the virtual-host style.
-              endpoint =
+            if is_nil(config.endpoint) and not is_nil(bucket) do
+              s3_host_suffix = "s3." <> config.region <> ".amazonaws.com"
+
+              # We consume the bucket name in the endpoint if there is no dots in it.
+              {endpoint, bucket} =
                 if String.contains?(bucket, ".") do
-                  "https://s3." <> config.region <> ".amazonaws.com/" <> bucket
+                  {"https://" <> s3_host_suffix, bucket}
                 else
-                  "https://" <> bucket <> ".s3." <> config.region <> ".amazonaws.com"
+                  {"https://" <> bucket <> "." <> s3_host_suffix, nil}
                 end
 
-              %Config{config | endpoint: endpoint}
+              %Config{config | endpoint: endpoint, bucket: bucket}
             else
               config
             end
           end)
 
-        {:ok, %Entry{key: key, config: config}}
+        if is_nil(config.endpoint) do
+          {:error, ArgumentError.exception("endpoint is required when bucket is nil")}
+        else
+          {:ok, %Entry{key: key, config: config}}
+        end
 
       _ ->
         {:error,

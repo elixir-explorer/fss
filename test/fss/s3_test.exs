@@ -21,7 +21,7 @@ defmodule FSS.S3Test do
                S3.parse("s3://my-bucket/my-file.png", config: config)
 
       assert config.endpoint == "https://my-bucket.s3.us-west-2.amazonaws.com"
-      assert config.bucket == "my-bucket"
+      assert config.bucket == nil
       assert config.secret_access_key == "my-secret"
       assert config.access_key_id == "my-access"
       assert config.region == "us-west-2"
@@ -31,11 +31,41 @@ defmodule FSS.S3Test do
       assert {:ok, %Entry{key: "my-file.png", config: %Config{} = config}} =
                S3.parse("s3://my.bucket.with.dots/my-file.png", config: config)
 
-      assert config.endpoint == "https://s3.us-west-2.amazonaws.com/my.bucket.with.dots"
+      assert config.endpoint == "https://s3.us-west-2.amazonaws.com"
       assert config.bucket == "my.bucket.with.dots"
       assert config.secret_access_key == "my-secret"
       assert config.access_key_id == "my-access"
       assert config.region == "us-west-2"
+    end
+
+    test "parses a s3:// style uri without bucket name but passing endpoint", %{config: config} do
+      assert {:ok, %Entry{key: "my-file.png", config: %Config{} = config}} =
+               S3.parse("s3:///my-file.png",
+                 config: %{
+                   config
+                   | endpoint: "https://my-custom-endpoint.example.com/my-custom-bucket"
+                 }
+               )
+
+      assert config.endpoint == "https://my-custom-endpoint.example.com/my-custom-bucket"
+      assert config.bucket == nil
+      assert config.secret_access_key == "my-secret"
+      assert config.access_key_id == "my-access"
+      assert config.region == "us-west-2"
+    end
+
+    test "does not parse a s3:// style uri without bucket and without an endpoint", %{
+      config: config
+    } do
+      assert {:error, error} =
+               S3.parse("s3:///my-file.png",
+                 config: %{
+                   config
+                   | endpoint: nil
+                 }
+               )
+
+      assert error == ArgumentError.exception("endpoint is required when bucket is nil")
     end
 
     test "accepts a config as a keyword list" do
