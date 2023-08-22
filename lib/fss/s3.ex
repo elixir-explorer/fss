@@ -10,6 +10,7 @@ defmodule FSS.S3 do
 
     defstruct [
       :access_key_id,
+      :bucket,
       :region,
       :secret_access_key,
       :endpoint,
@@ -22,18 +23,40 @@ defmodule FSS.S3 do
     The attributes are:
 
     * `:access_key_id` - This attribute is required.
-    * `:region` - This attribute is required.
+
     * `:secret_access_key` - This attribute is required.
-    * `:endpoint` - This attribute is optional. If specified, then `:region` is ignored.
-      This attribute is useful for when you are using a service that is compatible with
-      the AWS S3 API.
+
+    * `:bucket` - A valid bucket name. This attribute is optional,
+      but if is not provided, then the `:endpoint` must include the bucket name
+      either in the host, as a virtual host, or in the path. In other words:
+      if the bucket is not given, then `:endpoint` must be configured.
+
+      This attribute is going to be set to `nil` if the endpoint was
+      not provided, unless the bucket name contain dots in it.
+
+    * `:region` - This attribute is optional. It's normally required when working
+      with the official AWS S3 API.
+
+    * `:endpoint` - If specified, then `:region` is ignored.
+      This attribute is required to be configured if you are using a service that
+      is compatible with the AWS S3 API.
+
+      In case only a "bucket URL" - without discrimination of the bucket name - is provided
+      then the `:bucket` attribute can be nil just like the `:region`.
+
+      In case the endpoint is not provided, we compute a valid one for the AWS S3 API.
+      This endpoint is going to follow the virtual-host style most of the time, with
+      the only exception being when the bucket name has dots. In that case we build
+      the AWS S3 endpoint without the bucket name in it.
+
     * `:token` - This attribute is optional.
     """
     @type t :: %__MODULE__{
             access_key_id: String.t(),
-            region: String.t(),
             secret_access_key: String.t(),
-            endpoint: String.t() | nil,
+            endpoint: String.t(),
+            bucket: String.t() | nil,
+            region: String.t() | nil,
             token: String.t() | nil
           }
   end
@@ -43,19 +66,17 @@ defmodule FSS.S3 do
     Represents the S3 resource itself.
     """
 
-    defstruct [:bucket, :key, :config]
+    defstruct [:key, :config]
 
     @typedoc """
     The entry struct for S3.
 
     The attributes are:
 
-    * `:bucket` - A valid bucket name. This attribute is required.
     * `:key` - A valid key for the resource. This attribute is required.
     * `:config` - A valid S3 config from the type `Config.t()`. This attribute is required.
     """
     @type t :: %__MODULE__{
-            bucket: String.t(),
             key: String.t(),
             config: Config.t()
           }
@@ -77,6 +98,13 @@ defmodule FSS.S3 do
       - `AWS_SECRET_ACCESS_KEY`
       - `AWS_REGION` or `AWS_DEFAULT_REGION`
       - `AWS_SESSION_TOKEN`
+
+      In case the endpoint is not provided, we compute a valid one for the AWS S3 API,
+      That is going to follow the path style. The endpoint is not going to include the
+      `:bucket` in it, being necessary to do that when using this FSS entry.
+
+      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+      for more details.
   """
   @spec parse(String.t(), Keyword.t()) :: {:ok, Entry.t()} | {:error, Exception.t()}
   def parse(url, opts \\ []) do
@@ -86,26 +114,38 @@ defmodule FSS.S3 do
 
     case uri do
       %{scheme: "s3", host: bucket, path: "/" <> key} when is_binary(bucket) ->
+        bucket = if bucket != "", do: bucket
+
         config =
           opts
           |> Keyword.fetch!(:config)
-          |> case do
-            nil ->
-              config_from_system_env()
-
-            %Config{} = config ->
-              config
-
-            config when is_list(config) or is_map(config) ->
-              struct!(config_from_system_env(), config)
-
-            other ->
-              raise ArgumentError,
-                    "expect configuration to be a %FSS.S3.Config{} struct, a keyword list or a map. Instead got #{inspect(other)}"
-          end
+          |> normalize_config!()
           |> validate_config!()
+          |> then(fn %Config{} = config ->
+            config = %Config{config | bucket: bucket}
 
-        {:ok, %Entry{bucket: bucket, key: key, config: config}}
+            if is_nil(config.endpoint) and not is_nil(bucket) do
+              s3_host_suffix = "s3." <> config.region <> ".amazonaws.com"
+
+              # We consume the bucket name in the endpoint if there is no dots in it.
+              {endpoint, bucket} =
+                if String.contains?(bucket, ".") do
+                  {"https://" <> s3_host_suffix, bucket}
+                else
+                  {"https://" <> bucket <> "." <> s3_host_suffix, nil}
+                end
+
+              %Config{config | endpoint: endpoint, bucket: bucket}
+            else
+              config
+            end
+          end)
+
+        if is_nil(config.endpoint) do
+          {:error, ArgumentError.exception("endpoint is required when bucket is nil")}
+        else
+          {:ok, %Entry{key: key, config: config}}
+        end
 
       _ ->
         {:error,
@@ -122,6 +162,18 @@ defmodule FSS.S3 do
     check!(config, :region, "AWS_REGION")
 
     config
+  end
+
+  defp normalize_config!(nil), do: config_from_system_env()
+  defp normalize_config!(%Config{} = config), do: config
+
+  defp normalize_config!(config) when is_list(config) or is_map(config) do
+    struct!(config_from_system_env(), config)
+  end
+
+  defp normalize_config!(other) do
+    raise ArgumentError,
+          "expect configuration to be a %FSS.S3.Config{} struct, a keyword list or a map. Instead got #{inspect(other)}"
   end
 
   defp check!(config, key, env) do
