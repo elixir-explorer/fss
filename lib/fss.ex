@@ -5,7 +5,10 @@ defmodule FSS do
   # and the PRs that followed that one.
 
   @moduledoc """
-  A small abstraction for file storage specifications.
+  A small abstraction to describe how to access files.
+
+  It works with different file systems, for local files
+  and remote ones.
 
   It's a library to parse and validate URIs, with the necessary
   attributes.

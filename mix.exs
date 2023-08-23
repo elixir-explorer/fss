@@ -36,6 +36,7 @@ defmodule Fss.MixProject do
   defp package do
     [
       name: "fss",
+      description: "An abstraction to describe files on local or remote file systems",
       files: ~w(README* LICENSE* mix.exs lib),
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => @github_url}

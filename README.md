@@ -1,11 +1,16 @@
 # FSS - File system specs
 
-A small abstraction for file systems.
+[![Docs](https://img.shields.io/badge/hex.pm-docs-8e7ce6.svg)](https://hexdocs.pm/fss)
+[![Actions Status](https://github.com/elixir-explorer/fss/actions/workflows/ci.yml/badge.svg)](https://github.com/elixir-explorer/fss/actions)
+
+`FSS` is a small abstraction to describe how to access files in different filesystems.
+
+The docs can be found at <https://hexdocs.pm/fss>.
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `fss` to your list of dependencies in `mix.exs`:
+The package can be installed by adding `fss` to your list of dependencies
+in `mix.exs`:
 
 ```elixir
 def deps do
@@ -15,10 +20,11 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/fss>.
+Or by using `Mix.install/2`:
 
+```elixir
+Mix.install([{:fss, "~> 0.1.0"}])
+```
 
 ## License
 
