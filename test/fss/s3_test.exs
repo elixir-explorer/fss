@@ -156,4 +156,26 @@ defmodule FSS.S3Test do
                    end
     end
   end
+
+  describe "inspect(%Config{})" do
+    test "does not output secret values" do
+      config = %Config{
+        secret_access_key: "my-secret",
+        access_key_id: "my-access",
+        bucket: "my-bucket",
+        region: "my-region",
+        endpoint: "my-endpoint",
+        token: "my-token"
+      }
+
+      output = inspect(config)
+
+      assert output =~ "my-bucket"
+      assert output =~ "my-region"
+      assert output =~ "my-endpoint"
+      refute output =~ "my-access"
+      refute output =~ "my-secret"
+      refute output =~ "my-token"
+    end
+  end
 end

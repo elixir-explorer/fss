@@ -8,6 +8,7 @@ defmodule FSS.S3 do
     Represents the configuration needed for accessing an S3 resource.
     """
 
+    @derive {Inspect, only: [:bucket, :region, :endpoint]}
     defstruct [
       :access_key_id,
       :bucket,
