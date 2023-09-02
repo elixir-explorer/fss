@@ -1,4 +1,4 @@
-# FSS - File system specs
+# FSS - File system specifications
 
 [![Docs](https://img.shields.io/badge/hex.pm-docs-8e7ce6.svg)](https://hexdocs.pm/fss)
 [![Actions Status](https://github.com/elixir-explorer/fss/actions/workflows/ci.yml/badge.svg)](https://github.com/elixir-explorer/fss/actions)
