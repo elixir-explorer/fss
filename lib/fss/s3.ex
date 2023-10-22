@@ -196,4 +196,50 @@ defmodule FSS.S3 do
       token: System.get_env("AWS_SESSION_TOKEN")
     }
   end
+
+  def parse_aws_credentials(data) do
+    data
+    |> String.split("\n")
+    |> Enum.map(fn line ->
+      String.split(line, ";")
+      |> List.first()
+    end)
+    |> Enum.filter(&String.contains?(&1, "="))
+    |> Enum.map(fn line ->
+      [key, value] = String.split(line, "=")
+      key = String.trim(key) |> String.to_atom()
+      value = String.trim(value)
+      {key, value}
+    end)
+  end
+
+  @doc """
+  Builds a `Config.t()` reading from the aws profile on disk.
+  """
+  @spec config_from_aws_credentials_file :: Config.t()
+  def config_from_aws_credentials_file() do
+    credentials =
+      Path.join(System.user_home!(), ".aws/credentials")
+      |> File.read!()
+      |> parse_aws_credentials()
+      |> Enum.into(%{})
+
+    region =
+      Map.get(
+        credentials,
+        :region,
+        System.get_env("AWS_REGION", System.get_env("AWS_DEFAULT_REGION"))
+      )
+
+    # Is it supported to have the token in the credentials file?
+    token =
+      System.get_env("AWS_SESSION_TOKEN")
+
+    %Config{
+      access_key_id: credentials.aws_access_key_id,
+      secret_access_key: credentials.aws_secret_access_key,
+      region: region,
+      token: token
+    }
+  end
 end
