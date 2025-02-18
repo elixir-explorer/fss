@@ -123,7 +123,7 @@ defmodule FSS.S3 do
           |> normalize_config!()
           |> validate_config!()
           |> then(fn %Config{} = config ->
-            config = %Config{config | bucket: bucket}
+            config = %{config | bucket: bucket}
 
             if is_nil(config.endpoint) and not is_nil(bucket) do
               s3_host_suffix = "s3." <> config.region <> ".amazonaws.com"
@@ -136,7 +136,7 @@ defmodule FSS.S3 do
                   {"https://" <> bucket <> "." <> s3_host_suffix, nil}
                 end
 
-              %Config{config | endpoint: endpoint, bucket: bucket}
+              %{config | endpoint: endpoint, bucket: bucket}
             else
               config
             end

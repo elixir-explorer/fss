@@ -29,6 +29,7 @@ Mix.install([{:fss, "~> 0.1.0"}])
 ## License
 
 Copyright 2023 Philip Sampaio, José Valim
+Copyright 2025 José Valim
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
